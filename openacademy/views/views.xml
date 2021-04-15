@@ -51,6 +51,8 @@
 			<field name="instructor_id"/>
 			<field name="course_id"/>
 			<field name="attendee_id"/>
+			<field name="taken_seats" widget="progressbar"/>
+			<field name="active"/>
                     </group>
                 </sheet>
             </form>
