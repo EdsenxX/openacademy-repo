@@ -2,6 +2,7 @@
 
 from odoo import models, fields, api, exceptions
 from psycopg2 import IntegrityError
+from datetime import timedelta
 
 class Course(models.Model):
     _name = 'openacademy.course'
@@ -59,12 +60,44 @@ class Session(models.Model):
     attendee_id = fields.Many2many('res.partner',string="Attendees")
     taken_seats = fields.Float(compute="_taken_seats")
     active = fields.Boolean(default=True)
+    end_date = fields.Date(store=True,compute='_get_end_date', inverse="_set_end_date")
+    attendees_count = fields.Integer(compute='_get_attendees_count', store=True)
+    color = fields.Float()
+    hours = fields.Float(string="Duration in hours", computed="_get_hours", inverse="_set_hours")
+
+    @api.depends('duration')
+    def _get_hours(self):
+        for r in self:
+            r.hours = r.duration * 24
+
+    def set_hours(self):
+        for r in self:
+            r.duration = r.hours / 24
+
+    @api.depends('attendee_id')
+    def _get_attendees_count(self):
+        for record in self.filtered('seats'):
+                record.attendees_count = len(record.attendee_id) 
 
     @api.depends('seats', 'attendee_id')
     def _taken_seats(self):
         for record in self.filtered('seats'):
                 record.taken_seats = 100.0 * len(record.attendee_id) / record.seats
    
+    @api.depends('start_date', 'duration')
+    def _get_end_date(self):
+        for record in self.filtered('start_date'):
+            start_date = fields.Datetime.from_string(record.start_date)
+            record.end_date = start_date + timedelta(days=record.duration,seconds=-1)
+    
+    @api.depends('start_date', 'duration')
+    def _set_end_date(self):
+        for record in self.filtered('start_date'):
+            start_date = fields.Datetime.from_string(record.start_date)
+            end_date = fields.Datetime.from_string(record.end_date)
+            record.duration = (end_date - start_date).days + 1
+
+
     @api.onchange('seats','attendee_id')
     def _verify_valid_seats(self):
         if self.seats < 0:
